@@ -4,39 +4,103 @@ import datetime
 import webbrowser
 import os
 import time
+import tkinter as tk
+import threading
+from vosk import Model, KaldiRecognizer
+import sounddevice as sd
+import queue
+import json
+import openai
 
-# Initialize speech engine
+# =========================
+# Configuration
+# =========================
+openai.api_key = "your-openai-api-key"  # Replace this
+vosk_model_path = "vosk-model-small-en-us-0.15"
+music_dir = "/home/parthnikamm26/Music"  # ✅ Update to actual music folder
+
+# =========================
+# Text-to-Speech Setup
+# =========================
 engine = pyttsx3.init()
 voices = engine.getProperty('voices')
-engine.setProperty('voice', voices[1].id)  # Female voice
+engine.setProperty('voice', voices[1].id)
 engine.setProperty('rate', 150)
 
-# Speak function
 def speak(text):
     print(f"JARVIS: {text}")
     engine.say(text)
     engine.runAndWait()
 
-# Listen and recognize speech
+# =========================
+# GPT Integration
+# =========================
+def ask_gpt(query):
+    try:
+        response = openai.ChatCompletion.create(
+            model="gpt-3.5-turbo",
+            messages=[{"role": "user", "content": query}]
+        )
+        return response.choices[0].message.content.strip()
+    except Exception as e:
+        print(f"GPT Error: {e}")
+        return "I'm having trouble reaching my brain right now."
+
+# =========================
+# Wake Word Detection - VOSK
+# =========================
+model = Model(vosk_model_path)
+rec = KaldiRecognizer(model, 16000)
+q = queue.Queue()
+
+def callback(indata, frames, time, status):
+    if status:
+        print("[VOSK STATUS]", status)
+    q.put(bytes(indata))
+
+def listen_for_wake_word():
+    with sd.RawInputStream(samplerate=16000, blocksize=8000, dtype='int16',
+                           channels=1, callback=callback):
+        print("[VOSK] Listening for wake word...")
+        while True:
+            data = q.get()
+            if rec.AcceptWaveform(data):
+                result = json.loads(rec.Result())
+                text = result.get("text", "")
+                print("[Wake Word Text]:", text)
+                if "hey jarvis" in text:
+                    return True
+
+# =========================
+# Speech Recognition
+# =========================
 def listen_command():
     recognizer = sr.Recognizer()
     with sr.Microphone() as source:
         print("Listening for command...")
         recognizer.adjust_for_ambient_noise(source)
         audio = recognizer.listen(source)
-
     try:
         command = recognizer.recognize_google(audio)
         print(f"You said: {command}")
         return command.lower()
     except sr.UnknownValueError:
         speak("Sorry, I didn't catch that.")
-        return ""
     except sr.RequestError:
         speak("Internet connection error.")
-        return ""
+    return ""
 
-# Command handling
+# =========================
+# Authentication
+# =========================
+def authenticate():
+    speak("Please say your password.")
+    password = listen_command()
+    return password == "1234"
+
+# =========================
+# Command Handling
+# =========================
 def handle_command(command):
     if "your name" in command:
         speak("I am your assistant, Jarvis.")
@@ -50,7 +114,6 @@ def handle_command(command):
         speak("Opening Google")
         webbrowser.open("https://google.com")
     elif "play music" in command:
-        music_dir = "/home/parthnikamm26/Music"  # Make sure this path is correct
         try:
             songs = os.listdir(music_dir)
             if songs:
@@ -60,54 +123,52 @@ def handle_command(command):
                 speak("No music files found.")
         except Exception:
             speak("Could not play music. Check your path.")
-    elif "exit" in command or "stop" in command:
-        speak("Goodbye, shutting down.")
+    elif "delete" in command:
+        if authenticate():
+            speak("Command authorized. Deleting...")
+        else:
+            speak("Authentication failed.")
+    elif "exit" in command or "shutdown" in command:
+        speak("Goodbye Parth. Going offline.")
         return False
     else:
-        speak("Sorry, I don't know how to do that yet.")
+        response = ask_gpt(command)
+        speak(response)
     return True
 
-# Wake word listener
-def listen_for_wake_word():
-    recognizer = sr.Recognizer()
-    with sr.Microphone() as source:
-        print("Listening for wake word...")
-        recognizer.adjust_for_ambient_noise(source, duration=1.5)
-        audio = recognizer.listen(source, phrase_time_limit=3)
-        print("[DEBUG] Got audio, recognizing...")
+# =========================
+# GUI Setup
+# =========================
+def start_gui():
+    root = tk.Tk()
+    root.title("JARVIS Lite")
+    root.geometry("400x300")
 
-    try:
-        wake_text = recognizer.recognize_google(audio).lower()
-        print(f"[DEBUG] Wake Text: {wake_text}")
-        if "hey jarvis" in wake_text:
-            return True
-    except Exception as e:
-        print(f"[DEBUG] Error recognizing wake word: {e}")
+    label = tk.Label(root, text="JARVIS Lite GUI", font=("Helvetica", 16))
+    label.pack(pady=10)
 
-    return False
+    log = tk.Text(root, height=10, width=40)
+    log.pack()
 
-# Main loop with wake word
-def run_jarvis_with_wake_word():
-    speak("Jarvis is in standby mode. Say 'Hey Jarvis' to activate.")
+    def display(msg):
+        log.insert(tk.END, f"{msg}\n")
+        log.see(tk.END)
 
-    while True:
-        try:
+    def jarvis_thread():
+        speak("Jarvis is in standby mode. Say 'Hey Jarvis' to activate.")
+        while True:
             activated = listen_for_wake_word()
             if activated:
                 speak("Yes, how can I help?")
                 command = listen_command()
-
-                if "exit" in command or "shutdown" in command:
-                    speak("Goodbye Parth. Going offline.")
+                if not handle_command(command):
                     break
+                time.sleep(1)
 
-                handle_command(command)
+    threading.Thread(target=jarvis_thread).start()
+    root.mainloop()
 
-            time.sleep(1)  # Add a short delay to avoid CPU overuse
-        except KeyboardInterrupt:
-            speak("Interrupted manually. Shutting down.")
-            break
-
-# Start JARVIS
-run_jarvis_with_wake_word()
-
+# =========================
+# Start Application
+# =========================
+start_gui()
