@@ -1,0 +1,14 @@
+SpeechRecognition==3.10.0
+PyAudio==0.2.13
+pyttsx3==2.90
+
+yaml
+
+---
+
+### 🔹 If You Don’t Have `README.md` Yet
+
+1. Create and open it:
+```bash
+nano README.md
+
