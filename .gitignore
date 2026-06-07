@@ -1,0 +1,26 @@
+# Virtual environment
+jarvis-env/
+venv/
+env/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# API keys / config
+config.py
+.env
+secrets.py
+
+# Screenshots saved by JARVIS
+screenshot_*.png
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
