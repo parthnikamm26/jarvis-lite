@@ -53,13 +53,33 @@ jarvis-env\Scripts\activate
 pip install -r requirements.txt
 ```
 
-### 4. Add your API key
+### 4. Configure Environment Variables
 
-Open `jarvis.py` and replace:
-```python
-GEMINI_API_KEY = "YOUR_GEMINI_API_KEY_HERE"
+Create a `.env` file in the project root directory and add the following:
+
+```env
+GEMINI_API_KEY=your_gemini_api_key
+JARVIS_PASSWORD=your_password
 ```
-Get a free key at: https://aistudio.google.com/app/apikey
+
+Get a free Gemini API key from:
+https://aistudio.google.com/app/apikey
+
+Example:
+
+```env
+GEMINI_API_KEY=AIzaSyXXXXXXXXXXXX
+JARVIS_PASSWORD=parth
+```
+
+The application automatically loads these values when it starts.
+
+### Security Note
+
+Never commit your `.env` file or API keys to GitHub.
+
+The project includes a `.gitignore` file that prevents sensitive credentials from being uploaded to the repository.
+
 
 ### 5. Set your Music folder path
 ```python
