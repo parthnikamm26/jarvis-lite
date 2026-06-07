@@ -11,6 +11,9 @@ import requests
 import random
 import subprocess
 import ctypes
+from vosk import Model, KaldiRecognizer
+import pyaudio
+import json
 from dotenv import load_dotenv
 
 
@@ -91,45 +94,91 @@ def speak(text):
     time.sleep(0.8)  # prevent mic from picking up speaker
 
 # ============================================================
-# LISTEN FOR COMMAND
+# VOSK OFFLINE SPEECH MODEL
 # ============================================================
+
+vosk_model = Model("models/vosk-model-small-en-us-0.15")
+
+# ============================================================
+# OFFLINE COMMAND LISTENER (VOSK)
+# ============================================================
+
 def listen_command():
-    recognizer = sr.Recognizer()
     set_status("LISTENING...")
-    with sr.Microphone() as source:
-        gui_log("Listening for command...")
-        recognizer.adjust_for_ambient_noise(source)
-        audio = recognizer.listen(source)
-    set_status("PROCESSING...")
-    try:
-        command = recognizer.recognize_google(audio)
-        gui_log(f"You said: {command}")
-        add_to_memory("user", command)
-        return command.lower()
-    except sr.UnknownValueError:
-        speak("Sorry, I didn't catch that.")
-        return ""
-    except sr.RequestError:
-        speak("Internet connection error.")
-        return ""
-    finally:
-        set_status("ACTIVE")
+
+    recognizer = KaldiRecognizer(vosk_model, 16000)
+
+    mic = pyaudio.PyAudio()
+
+    stream = mic.open(
+        format=pyaudio.paInt16,
+        channels=1,
+        rate=16000,
+        input=True,
+        frames_per_buffer=8192
+    )
+
+    stream.start_stream()
+
+    gui_log("Listening for command...")
+
+    while True:
+        data = stream.read(4096, exception_on_overflow=False)
+
+        if recognizer.AcceptWaveform(data):
+            result = json.loads(recognizer.Result())
+
+            text = result.get("text", "").strip()
+
+            if text:
+                gui_log(f"You said: {text}")
+                add_to_memory("user", text)
+
+                stream.stop_stream()
+                stream.close()
+                mic.terminate()
+
+                set_status("ACTIVE")
+
+                return text.lower()
+
 
 # ============================================================
 # WAKE WORD DETECTION (Google-based, no API key needed)
 # ============================================================
 def listen_for_wake_word():
-    recognizer = sr.Recognizer()
+    recognizer = KaldiRecognizer(vosk_model, 16000)
+
+    mic = pyaudio.PyAudio()
+
+    stream = mic.open(
+        format=pyaudio.paInt16,
+        channels=1,
+        rate=16000,
+        input=True,
+        frames_per_buffer=8192
+    )
+
+    stream.start_stream()
+
     set_status("STANDBY — Say 'Hey Jarvis'")
-    with sr.Microphone() as source:
-        recognizer.adjust_for_ambient_noise(source, duration=1)
-        audio = recognizer.listen(source, phrase_time_limit=4)
-    try:
-        wake_text = recognizer.recognize_google(audio).lower()
-        gui_log(f"[Wake check]: {wake_text}")
-        return "hey jarvis" in wake_text or "jarvis" in wake_text
-    except Exception:
-        return False
+
+    while True:
+        data = stream.read(4096, exception_on_overflow=False)
+
+        if recognizer.AcceptWaveform(data):
+            result = json.loads(recognizer.Result())
+
+            text = result.get("text", "").lower()
+
+            if text:
+                gui_log(f"[Wake check]: {text}")
+
+            if "hey jarvis" in text or "jarvis" in text:
+                stream.stop_stream()
+                stream.close()
+                mic.terminate()
+                return True
 
 # ============================================================
 # AUTHENTICATION
