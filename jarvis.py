@@ -14,11 +14,20 @@ import ctypes
 from vosk import Model, KaldiRecognizer
 import pyaudio
 import json
+
+from memory.memory import (
+    load_memory,
+    save_memory,
+    add_to_memory,
+    build_memory_context
+)
+
 from dotenv import load_dotenv
 
 
 load_dotenv()
 MEMORY_FILE = "memory.json"
+
 
 JARVIS_PASSWORD = os.getenv("JARVIS_PASSWORD", "parth")
 
