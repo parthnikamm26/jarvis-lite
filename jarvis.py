@@ -22,6 +22,8 @@ from memory.memory import (
     build_memory_context
 )
 
+from ai.gemini import ask_gemini
+
 from dotenv import load_dotenv
 
 
@@ -231,43 +233,6 @@ def authenticate():
     speak("Please say the password to continue.")
     password = listen_command()
     return JARVIS_PASSWORD.lower() in password.lower()
-
-# ============================================================
-# GEMINI AI (with conversation memory)
-# ============================================================
-def ask_gemini(prompt, retries=3):
-    memory_context = build_memory_context()
-    full_prompt = f"""You are JARVIS, a helpful AI assistant. Be concise.
-
-{memory_context}
-User: {prompt}
-Jarvis:"""
-
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={GEMINI_API_KEY}"
-    payload = {
-        "contents": [{"parts": [{"text": full_prompt}]}],
-        "generationConfig": {"maxOutputTokens": 150, "temperature": 0.7}
-    }
-
-    for attempt in range(retries):
-        try:
-            response = requests.post(url, json=payload, timeout=10)
-            if response.status_code == 200:
-                data = response.json()
-                return data["candidates"][0]["content"]["parts"][0]["text"].strip()
-            elif response.status_code == 429:
-                wait_time = 20 * (attempt + 1)
-                gui_log(f"[Gemini] Quota hit. Retrying in {wait_time} seconds...")
-                speak(f"I'm thinking, please wait {wait_time} seconds.")
-                time.sleep(wait_time)
-            else:
-                gui_log(f"[Gemini Error] {response.status_code}: {response.text}")
-                return "I'm having trouble thinking right now."
-        except Exception as e:
-            gui_log(f"[Gemini Exception] {e}")
-            return "Something went wrong with my brain."
-
-    return "Sorry, I'm overloaded right now. Please try again in a minute."
 
 # ============================================================
 # SYSTEM CONTROLS
@@ -488,7 +453,13 @@ def handle_command(command):
     # --- AI Fallback (Gemini with memory) ---
     else:
         gui_log("[Gemini] Thinking...")
-        response = ask_gemini(command)
+        response = ask_gemini(
+    command,
+    build_memory_context(),
+    GEMINI_API_KEY,
+    gui_log,
+    speak
+)
         speak(response)
 
     return True
