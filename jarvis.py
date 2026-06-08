@@ -18,6 +18,7 @@ from dotenv import load_dotenv
 
 
 load_dotenv()
+MEMORY_FILE = "memory.json"
 
 JARVIS_PASSWORD = os.getenv("JARVIS_PASSWORD", "parth")
 
@@ -25,6 +26,11 @@ JARVIS_PASSWORD = os.getenv("JARVIS_PASSWORD", "parth")
 # API KEY
 # ============================================================
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+
+if not GEMINI_API_KEY:
+    print("ERROR: GEMINI_API_KEY not found")
+else:
+    print("Gemini key loaded:", GEMINI_API_KEY[:10])
 MUSIC_DIR = r"C:\Users\Bhavesh\Music"
 
 # ============================================================
@@ -32,19 +38,48 @@ MUSIC_DIR = r"C:\Users\Bhavesh\Music"
 # ============================================================
 conversation_history = []
 
+def load_memory():
+    global conversation_history
+
+    try:
+        with open(MEMORY_FILE, "r", encoding="utf-8") as file:
+            conversation_history = json.load(file)
+            gui_log("[Memory] Loaded successfully.")
+    except FileNotFoundError:
+        conversation_history = []
+    except Exception as e:
+        gui_log(f"[Memory Error] {e}")
+        conversation_history = []
+
+def save_memory():
+    try:
+        with open(MEMORY_FILE, "w", encoding="utf-8") as file:
+            json.dump(conversation_history, file, indent=4)
+    except Exception as e:
+        gui_log(f"[Memory Save Error] {e}")
+        
 def add_to_memory(role, text):
-    conversation_history.append({"role": role, "text": text})
-    if len(conversation_history) > 10:  # 5 user + 5 jarvis
+    conversation_history.append({
+        "role": role,
+        "text": text
+    })
+
+    if len(conversation_history) > 10:
         conversation_history.pop(0)
+
+    save_memory()
+
 
 def build_memory_context():
     context = ""
+
     for entry in conversation_history:
         if entry["role"] == "user":
             context += f"User: {entry['text']}\n"
         else:
             context += f"Jarvis: {entry['text']}\n"
-    return context
+
+    return context        
 
 # ============================================================
 # GUI SETUP
@@ -199,7 +234,7 @@ def ask_gemini(prompt, retries=3):
 User: {prompt}
 Jarvis:"""
 
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key={GEMINI_API_KEY}"
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={GEMINI_API_KEY}"
     payload = {
         "contents": [{"parts": [{"text": full_prompt}]}],
         "generationConfig": {"maxOutputTokens": 150, "temperature": 0.7}
@@ -467,7 +502,11 @@ def run_jarvis():
         time.sleep(0.5)
 
 # ============================================================
+# ============================================================
 # LAUNCH
 # ============================================================
+
+load_memory()
+
 threading.Thread(target=run_jarvis, daemon=True).start()
 root.mainloop()
