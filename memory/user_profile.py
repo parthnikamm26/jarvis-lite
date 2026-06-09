@@ -32,3 +32,6 @@ def get_fact(key):
     profile = load_profile()
 
     return profile.get(key)
+
+def get_profile():
+    return load_profile()

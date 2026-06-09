@@ -51,3 +51,6 @@ def build_memory_context():
             context += f"Jarvis: {entry['text']}\n"
 
     return context
+
+
+

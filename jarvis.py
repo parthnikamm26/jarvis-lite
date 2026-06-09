@@ -20,14 +20,15 @@ from memory.memory import (
     build_memory_context
 )
 
-from memory.user_profile import (
-    remember_fact,
-    get_fact
-)
-
 from speech.listener import (
     listen_command,
     listen_for_wake_word
+)
+
+from memory.user_profile import (
+    remember_fact,
+    get_fact,
+    get_profile
 )
 
 from ai.gemini import ask_gemini
@@ -314,6 +315,13 @@ def handle_command(command):
                 "You haven't told me where you study yet."
             )
             
+    elif "show my profile" in command:
+
+        profile = get_profile()
+
+        speak(
+            str(profile)
+        )        
                 
 
         
