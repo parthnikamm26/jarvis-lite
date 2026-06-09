@@ -22,6 +22,11 @@ from memory.memory import (
     build_memory_context
 )
 
+from speech.listener import (
+    listen_command,
+    listen_for_wake_word
+)
+
 from ai.gemini import ask_gemini
 
 from dotenv import load_dotenv
@@ -43,54 +48,7 @@ if not GEMINI_API_KEY:
 else:
     print("Gemini key loaded:", GEMINI_API_KEY[:10])
 MUSIC_DIR = r"C:\Users\Bhavesh\Music"
-
-# ============================================================
-# CONVERSATION MEMORY (last 5 exchanges)
-# ============================================================
-conversation_history = []
-
-def load_memory():
-    global conversation_history
-
-    try:
-        with open(MEMORY_FILE, "r", encoding="utf-8") as file:
-            conversation_history = json.load(file)
-            gui_log("[Memory] Loaded successfully.")
-    except FileNotFoundError:
-        conversation_history = []
-    except Exception as e:
-        gui_log(f"[Memory Error] {e}")
-        conversation_history = []
-
-def save_memory():
-    try:
-        with open(MEMORY_FILE, "w", encoding="utf-8") as file:
-            json.dump(conversation_history, file, indent=4)
-    except Exception as e:
-        gui_log(f"[Memory Save Error] {e}")
-        
-def add_to_memory(role, text):
-    conversation_history.append({
-        "role": role,
-        "text": text
-    })
-
-    if len(conversation_history) > 10:
-        conversation_history.pop(0)
-
-    save_memory()
-
-
-def build_memory_context():
-    context = ""
-
-    for entry in conversation_history:
-        if entry["role"] == "user":
-            context += f"User: {entry['text']}\n"
-        else:
-            context += f"Jarvis: {entry['text']}\n"
-
-    return context        
+       
 
 # ============================================================
 # GUI SETUP
@@ -145,93 +103,18 @@ def speak(text):
 
 vosk_model = Model("models/vosk-model-small-en-us-0.15")
 
-# ============================================================
-# OFFLINE COMMAND LISTENER (VOSK)
-# ============================================================
-
-def listen_command():
-    set_status("LISTENING...")
-
-    recognizer = KaldiRecognizer(vosk_model, 16000)
-
-    mic = pyaudio.PyAudio()
-
-    stream = mic.open(
-        format=pyaudio.paInt16,
-        channels=1,
-        rate=16000,
-        input=True,
-        frames_per_buffer=8192
-    )
-
-    stream.start_stream()
-
-    gui_log("Listening for command...")
-
-    while True:
-        data = stream.read(4096, exception_on_overflow=False)
-
-        if recognizer.AcceptWaveform(data):
-            result = json.loads(recognizer.Result())
-
-            text = result.get("text", "").strip()
-
-            if text:
-                gui_log(f"You said: {text}")
-                add_to_memory("user", text)
-
-                stream.stop_stream()
-                stream.close()
-                mic.terminate()
-
-                set_status("ACTIVE")
-
-                return text.lower()
-
-
-# ============================================================
-# WAKE WORD DETECTION (Google-based, no API key needed)
-# ============================================================
-def listen_for_wake_word():
-    recognizer = KaldiRecognizer(vosk_model, 16000)
-
-    mic = pyaudio.PyAudio()
-
-    stream = mic.open(
-        format=pyaudio.paInt16,
-        channels=1,
-        rate=16000,
-        input=True,
-        frames_per_buffer=8192
-    )
-
-    stream.start_stream()
-
-    set_status("STANDBY — Say 'Hey Jarvis'")
-
-    while True:
-        data = stream.read(4096, exception_on_overflow=False)
-
-        if recognizer.AcceptWaveform(data):
-            result = json.loads(recognizer.Result())
-
-            text = result.get("text", "").lower()
-
-            if text:
-                gui_log(f"[Wake check]: {text}")
-
-            if "hey jarvis" in text or "jarvis" in text:
-                stream.stop_stream()
-                stream.close()
-                mic.terminate()
-                return True
 
 # ============================================================
 # AUTHENTICATION
 # ============================================================
 def authenticate():
     speak("Please say the password to continue.")
-    password = listen_command()
+    password = listen_command(
+    vosk_model,
+    gui_log,
+    set_status,
+    add_to_memory
+)
     return JARVIS_PASSWORD.lower() in password.lower()
 
 # ============================================================
@@ -287,7 +170,12 @@ def set_timer(command):
     numbers = re.findall(r'\d+', command)
     if not numbers:
         speak("How many minutes should I set the timer for?")
-        response = listen_command()
+        response = listen_command(
+    vosk_model,
+    gui_log,
+    set_status,
+    add_to_memory
+)
         numbers = re.findall(r'\d+', response)
 
     if numbers:
@@ -431,7 +319,12 @@ def handle_command(command):
     # --- System ---
     elif "shutdown" in command and "computer" in command:
         speak("Are you sure you want to shut down? Say yes to confirm.")
-        confirm = listen_command()
+        confirm = listen_command(
+    vosk_model,
+    gui_log,
+    set_status,
+    add_to_memory
+)
         if "yes" in confirm:
             shutdown_pc()
         else:
@@ -439,7 +332,12 @@ def handle_command(command):
 
     elif "restart" in command and "computer" in command:
         speak("Are you sure you want to restart? Say yes to confirm.")
-        confirm = listen_command()
+        confirm = listen_command(
+    vosk_model,
+    gui_log,
+    set_status,
+    add_to_memory
+)
         if "yes" in confirm:
             restart_pc()
         else:
@@ -471,9 +369,18 @@ def run_jarvis():
     speak("JARVIS online. Say Hey Jarvis to activate.")
     while True:
         try:
-            if listen_for_wake_word():
+            if listen_for_wake_word(
+    vosk_model,
+    gui_log,
+    set_status
+):
                 speak("Yes, how can I help?")
-                command = listen_command()
+                command = listen_command(
+    vosk_model,
+    gui_log,
+    set_status,
+    add_to_memory
+)
                 if not handle_command(command):
                     root.quit()
                     break
