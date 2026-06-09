@@ -20,6 +20,11 @@ from memory.memory import (
     build_memory_context
 )
 
+from memory.user_profile import (
+    remember_fact,
+    get_fact
+)
+
 from speech.listener import (
     listen_command,
     listen_for_wake_word
@@ -215,9 +220,103 @@ def handle_command(command):
     if not command:
         return True
 
-    # --- Identity ---
-    if "your name" in command:
-        speak("I am JARVIS, your Just A Rather Very Intelligent System.")
+        # --- Identity ---
+    if "my name is" in command:   
+        
+        name = command.replace(
+            "my name is",
+            ""
+        ).strip()
+
+        remember_fact("name", name)
+
+        speak(
+            f"I'll remember that your name is {name}"
+        )
+
+    elif "what is my name" in command:
+
+        name = get_fact("name")
+
+        if name:
+            speak(
+                f"Your name is {name}"
+            )
+        else:
+            speak(
+                "You haven't told me your name yet."
+            )
+
+    elif "your name" in command:
+        speak(
+            "I am JARVIS, your Just A Rather Very Intelligent System."
+        )
+        
+    elif "my favorite language is" in command:
+
+        language = command.replace(
+            "my favorite language is",
+            ""
+        ).strip()
+
+        remember_fact(
+            "favorite_language",
+            language
+        )
+
+        speak(
+            f"I'll remember that your favorite language is {language}"
+        )
+
+    elif "what is my favorite language" in command:
+
+        language = get_fact(
+            "favorite_language"
+        )
+
+        if language:
+            speak(
+                f"Your favorite language is {language}"
+            )
+        else:
+            speak(
+                "You haven't told me your favorite language yet."
+            )
+            
+    elif "i study at" in command:
+
+        college = command.replace(
+            "i study at",
+            ""
+        ).strip()
+
+        remember_fact(
+            "college",
+            college
+        )
+
+        speak(
+            f"I'll remember that you study at {college}"
+        )
+
+    elif "where do i study" in command:
+
+        college = get_fact(
+            "college"
+        )
+
+        if college:
+            speak(
+                f"You study at {college}"
+            )
+        else:
+            speak(
+                "You haven't told me where you study yet."
+            )
+            
+                
+
+        
 
     # --- Time & Date ---
     elif "time" in command:
