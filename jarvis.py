@@ -1,4 +1,3 @@
-import speech_recognition as sr
 import pyttsx3
 import datetime
 import webbrowser
@@ -17,7 +16,6 @@ import json
 
 from memory.memory import (
     load_memory,
-    save_memory,
     add_to_memory,
     build_memory_context
 )
@@ -31,10 +29,7 @@ from ai.gemini import ask_gemini
 
 from dotenv import load_dotenv
 
-
 load_dotenv()
-MEMORY_FILE = "memory.json"
-
 
 JARVIS_PASSWORD = os.getenv("JARVIS_PASSWORD", "parth")
 
@@ -45,11 +40,9 @@ GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
 if not GEMINI_API_KEY:
     print("ERROR: GEMINI_API_KEY not found")
-else:
-    print("Gemini key loaded:", GEMINI_API_KEY[:10])
+    
 MUSIC_DIR = r"C:\Users\Bhavesh\Music"
        
-
 # ============================================================
 # GUI SETUP
 # ============================================================
