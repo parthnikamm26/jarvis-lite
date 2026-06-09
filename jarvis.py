@@ -25,6 +25,8 @@ from speech.listener import (
     listen_for_wake_word
 )
 
+from speech.whisper_listener import listen_command_whisper
+
 from memory.user_profile import (
     remember_fact,
     get_fact,
@@ -475,12 +477,7 @@ def run_jarvis():
     set_status
 ):
                 speak("Yes, how can I help?")
-                command = listen_command(
-    vosk_model,
-    gui_log,
-    set_status,
-    add_to_memory
-)
+                command = listen_command_whisper()
                 if not handle_command(command):
                     root.quit()
                     break
