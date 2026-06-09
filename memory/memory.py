@@ -1,7 +1,9 @@
-# ============================================================
-# CONVERSATION MEMORY (last 5 exchanges)
-# ============================================================
+import json
+
+MEMORY_FILE = "memory.json"
+
 conversation_history = []
+
 
 def load_memory():
     global conversation_history
@@ -9,20 +11,24 @@ def load_memory():
     try:
         with open(MEMORY_FILE, "r", encoding="utf-8") as file:
             conversation_history = json.load(file)
-            gui_log("[Memory] Loaded successfully.")
+
     except FileNotFoundError:
         conversation_history = []
+
     except Exception as e:
-        gui_log(f"[Memory Error] {e}")
+        print(f"[Memory Error] {e}")
         conversation_history = []
+
 
 def save_memory():
     try:
         with open(MEMORY_FILE, "w", encoding="utf-8") as file:
             json.dump(conversation_history, file, indent=4)
+
     except Exception as e:
-        gui_log(f"[Memory Save Error] {e}")
-        
+        print(f"[Memory Save Error] {e}")
+
+
 def add_to_memory(role, text):
     conversation_history.append({
         "role": role,
@@ -44,4 +50,4 @@ def build_memory_context():
         else:
             context += f"Jarvis: {entry['text']}\n"
 
-    return context        
+    return context
